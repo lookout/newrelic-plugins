@@ -1,29 +1,24 @@
 package ar.com.threelegs.newrelic;
 
-import java.util.ArrayList;
-import java.util.List;
-
-import javax.management.MBeanServerConnection;
-import javax.management.ObjectName;
-
 import ar.com.threelegs.newrelic.jmx.ConnectionException;
 import ar.com.threelegs.newrelic.jmx.JMXHelper;
 import ar.com.threelegs.newrelic.jmx.JMXTemplate;
-
 import com.newrelic.metrics.publish.Agent;
-import com.newrelic.metrics.publish.util.Logger;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigException;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import javax.management.MBeanServerConnection;
+import javax.management.ObjectName;
+import java.util.ArrayList;
+import java.util.List;
 
 public class JMXRemote extends Agent {
-	private static final Logger LOGGER = Logger.getLogger(JMXRemote.class);
+	private static final Logger LOGGER = LoggerFactory.getLogger(JMXRemote.class);
 	private String name, host, port, metricPrefix;
 	private List<? extends Config> JMXList;
-	
-	public JMXRemote(Config config) {
-		this(config, Defaults.JMXREMOTE_PLUGIN_NAME, Defaults.VERSION);
-	}
-	
+
 	public JMXRemote(Config config, String pluginName, String pluginVersion) {
 		super(pluginName, pluginVersion);
 		this.name = config.getString("name");
@@ -40,10 +35,10 @@ public class JMXRemote extends Agent {
 
 	@Override
 	public void pollCycle() {
-		LOGGER.debug("starting poll cycle");
+		LOGGER.debug("starting JMXRemote poll cycle");
 		List<Metric> allMetrics = new ArrayList<Metric>();
 		try {
-			LOGGER.debug("Connecting to host [" + this.host + ":" + this.port + "]...");
+			LOGGER.debug("Connecting to host {}:{}", this.host, this.port);
 				try {
 					List<Metric> metrics = JMXHelper.run(this.host, this.port, new JMXTemplate<List<Metric>>() {
 						@Override
@@ -63,7 +58,7 @@ public class JMXRemote extends Agent {
 										metrics.add(new Metric(metricName, thisMetricType, thisValue.value));
 									}
 								} catch (Exception e) {
-									LOGGER.error(e, "failed object: " + thisMetric.getString("objectname"));
+									LOGGER.error("failed object {}", thisMetric.getString("objectname"), e);
 								}
 							}
 							return metrics;
@@ -75,7 +70,7 @@ public class JMXRemote extends Agent {
 					allMetrics.add(new Metric(metricPrefix + "/" + "status", "value", 3));
 					e.printStackTrace();
 				} catch (Exception e) {
-					LOGGER.debug("exception processing host: " + host + ":" + port);
+					LOGGER.warn("exception processing host {}:{}", host, port);
 					e.printStackTrace();
 				} finally {
 					allMetrics.add(new Metric(metricPrefix + "/" + "status", "value", 1));
@@ -83,7 +78,7 @@ public class JMXRemote extends Agent {
 		} catch (Exception e) {
 			throw new RuntimeException(e);
 		} finally {
-			LOGGER.debug("pushing " + allMetrics.size() + " metrics...");
+			LOGGER.debug("pushing {} metrics", allMetrics.size());
 			int dropped = 0;
 			for (Metric m : allMetrics) {
 				if (m.value != null && !m.value.toString().equals("NaN"))
@@ -91,7 +86,7 @@ public class JMXRemote extends Agent {
 				else
 					dropped++;
 			}
-			LOGGER.debug("pushing metrics: done! dropped metrics: " + dropped);
+			LOGGER.debug("pushing metrics: done! dropped metrics {} ", dropped);
 		}
 	}
 }

@@ -1,0 +1,61 @@
+plugins {
+  id "com.jfrog.bintray" version "1.0"
+}
+
+defaultTasks 'clean', 'fatJar'
+apply plugin: 'java'
+
+version = '3.0'
+
+repositories {
+    mavenCentral()
+    flatDir {
+        dirs 'lib'
+    }
+}
+
+dependencies {
+    compile group: 'com.typesafe', name: 'config', version: '0.4.0'
+    compile 'com.newrelic:metrics_publish:2.0.0'
+    // includes com.googlecode.json-simple.json-simple 1.1.1 and ch.qos.logback.logback-classic 1.1.1
+}
+
+jar {
+    manifest {
+        attributes 'Implementation-Title': 'Cassandra Poller for NewRelic',
+	           'Implementation-Version': version,
+		   'Implementation-Vendor': 'Lookout Security',
+		   'Main-Class': 'ar.com.threelegs.newrelic.Main'
+    }
+}
+task fatJar(type: Jar) {
+    manifest {
+        attributes 'Implementation-Title': 'Cassandra Poller for NewRelic',
+	           'Implementation-Version': version,
+		   'Implementation-Vendor': 'Lookout Security',
+		   'Main-Class': 'ar.com.threelegs.newrelic.Main'
+    }
+    baseName = project.name + '-all'
+    from { configurations.compile.collect { it.isDirectory() ? it : zipTree(it) } }
+    with jar
+}
+
+bintray {
+    user = bintrayUser
+    key = bintrayKey
+    publish = true
+    dryRun = false
+    configurations = ['archives']
+    pkg {
+        userOrg = 'lookout'
+        repo = 'systems'
+        name = 'newrelic-plugins'
+        labels = ['newrelic', 'java', 'cassandra']
+
+	version {
+	    name = project.version
+	    vcsTag = "v${project.version}"
+	    desc = 'A lookout build of the newrelic cassandra plugin'
+	}
+    }
+}

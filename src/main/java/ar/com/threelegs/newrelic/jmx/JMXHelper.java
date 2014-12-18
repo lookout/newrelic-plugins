@@ -14,12 +14,12 @@ import javax.management.remote.JMXConnectorFactory;
 import javax.management.remote.JMXServiceURL;
 
 import ar.com.threelegs.newrelic.Metric;
-
-import com.newrelic.metrics.publish.util.Logger;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class JMXHelper {
 	
-	private static final Logger LOGGER = Logger.getLogger(JMXHelper.class);
+	private static final Logger LOGGER = LoggerFactory.getLogger(JMXHelper.class);
 	
 	public static <T> T run(String host, String port, JMXTemplate<T> template) throws ConnectionException {
 		JMXServiceURL address;
@@ -39,7 +39,7 @@ public class JMXHelper {
 		} catch (ConnectionException e) {
 			throw e;
 		} catch (Exception e) {
-			LOGGER.error(e);
+			LOGGER.error("Unhandled exception", e);
 		} finally {
 			close(connector);
 		}
@@ -86,7 +86,7 @@ public class JMXHelper {
 						returnList.add(new Metric(thisInstance.getObjectName().toString(), thisAttribute, (Number)getAttribute(connection, thisInstance.getObjectName(), thisAttribute)));
 					} catch (Exception e) {
 						// Not a number, won't add metric, but won't crash the dang thing
-						LOGGER.error(e, "failed object: " + thisInstance.getObjectName().toString(), "failed attribute: " + thisAttribute);
+						LOGGER.error("failed object {} attribute {}", thisInstance.getObjectName(), thisAttribute, e);
 					}
 				}
 			}

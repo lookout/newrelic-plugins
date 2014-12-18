@@ -4,12 +4,13 @@ import java.io.File;
 
 import com.newrelic.metrics.publish.Runner;
 import com.newrelic.metrics.publish.configuration.ConfigurationException;
-import com.newrelic.metrics.publish.util.Logger;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class Main {
-	private static final Logger LOGGER = Logger.getLogger(Main.class);
+	private static final Logger LOGGER = LoggerFactory.getLogger(Main.class);
 
 	public static void main(String[] args) throws Exception {
 		Runner runner = new Runner();
@@ -48,7 +49,7 @@ public class Main {
 		try {
 			runner.setupAndRun();
 		} catch (ConfigurationException e) {
-			e.printStackTrace();
+			LOGGER.error("Configuration exception", e);
 			System.err.println("Error configuring");
 			System.exit(-1);
 		}

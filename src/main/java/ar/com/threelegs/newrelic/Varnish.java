@@ -14,6 +14,8 @@ import java.util.regex.Pattern;
 import javax.xml.parsers.DocumentBuilder;
 import javax.xml.parsers.DocumentBuilderFactory;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.w3c.dom.Document;
 import org.w3c.dom.Element;
 import org.w3c.dom.NodeList;
@@ -21,12 +23,11 @@ import org.xml.sax.InputSource;
 
 import com.newrelic.metrics.publish.Agent;
 import com.newrelic.metrics.publish.processors.EpochCounter;
-import com.newrelic.metrics.publish.util.Logger;
 import com.typesafe.config.Config;
 
 public class Varnish extends Agent {
 
-	private static final Logger LOGGER = Logger.getLogger(Varnish.class);
+	private static final Logger LOGGER = LoggerFactory.getLogger(Varnish.class);
 	private String name;
 	private Config config;
 	private Map<Pattern, String> units = new HashMap<Pattern, String>();
@@ -99,11 +100,11 @@ public class Varnish extends Agent {
 			p.waitFor();
 
 		} catch (Exception e) {
-			LOGGER.error(e);
+			LOGGER.error("Error polling varnish", e);
 		} finally {
 			LOGGER.debug("pushing " + allMetrics.size() + " metrics...");
 			for (Metric m : allMetrics) {
-				LOGGER.debug(m.name + "[" + m.valueType + "] --> " + m.value);
+				LOGGER.debug("{}[{}] --> {}", m.name, m.valueType, m.value);
 				reportMetric(m.name, m.valueType, m.value);
 			}
 			LOGGER.debug("done!");

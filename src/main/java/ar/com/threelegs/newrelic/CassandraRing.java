@@ -12,12 +12,13 @@ import ar.com.threelegs.newrelic.jmx.JMXTemplate;
 import ar.com.threelegs.newrelic.util.CassandraHelper;
 
 import com.newrelic.metrics.publish.Agent;
-import com.newrelic.metrics.publish.util.Logger;
 import com.typesafe.config.Config;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class CassandraRing extends Agent {
 
-	private static final Logger LOGGER = Logger.getLogger(CassandraRing.class);
+	private static final Logger LOGGER = LoggerFactory.getLogger(CassandraRing.class);
 	private String name;
 	private Config config;
 
@@ -34,19 +35,18 @@ public class CassandraRing extends Agent {
 
 	@Override
 	public void pollCycle() {
-		LOGGER.debug("starting poll cycle");
 		List<Metric> allMetrics = new ArrayList<Metric>();
 		try {
-			LOGGER.debug("getting ring hosts from discovery_host " + config.getString("discovery_host"));
+			LOGGER.debug("getting ring hosts from discovery_host {}", config.getString("discovery_host"));
 			List<String> ringHosts = CassandraHelper.getRingHosts(config.getString("discovery_host"), config.getString("jmx_port"));
 
-			LOGGER.debug("getting metrics for hosts [" + ringHosts + "]...");
+			LOGGER.debug("getting metrics for hosts {}", ringHosts);
 
 			allMetrics.add(new Metric("Cassandra/global/totalHosts", "count", ringHosts.size()));
 			int downCount = 0;
 
 			for (final String host : ringHosts) {
-				LOGGER.debug("getting metrics for host [" + host + "]...");
+				LOGGER.debug("getting metrics for host={}", host);
 
 				try {
 					List<Metric> metrics = JMXHelper.run(host, config.getString("jmx_port"), new JMXTemplate<List<Metric>>() {
@@ -157,9 +157,9 @@ public class CassandraRing extends Agent {
 					allMetrics.add(new Metric("Cassandra/downtime/hosts/" + e.getHost(), "value", 1));
 					downCount++;
 					allMetrics.add(new Metric("Cassandra/downtime/global", "count", downCount));
-					e.printStackTrace();
+					LOGGER.warn("host={} is down", e.getHost());
 				} catch (Exception e) {
-					LOGGER.error(e);
+					LOGGER.error("Unhandled exception while reading metrics", e);
 				}
 			}
 
@@ -168,19 +168,22 @@ public class CassandraRing extends Agent {
 			// TODO: change to correct value (qty of failed connections) when we
 			// make discoveryHosts a list.
 			allMetrics.add(new Metric("Cassandra/downtime/global", "count", 1));
-			LOGGER.error(e);
+			LOGGER.error(e.getClass().getName(), e);
 		} catch (Exception e) {
 			throw new RuntimeException(e);
 		} finally {
-			LOGGER.debug("pushing " + allMetrics.size() + " metrics...");
+			LOGGER.debug("pushing {} metrics", allMetrics.size());
 			int dropped = 0;
 			for (Metric m : allMetrics) {
-				if (m.value != null && !m.value.toString().equals("NaN"))
+				if (m.value != null && !m.value.toString().equals("NaN")) {
+					LOGGER.trace("name={} type={} value={}", m.name, m.valueType, m.value);
 					reportMetric(m.name, m.valueType, m.value);
-				else
+				} else {
+					LOGGER.debug("dropped name={} type={}", m.name, m.valueType);
 					dropped++;
+				}
 			}
-			LOGGER.debug("pushing metrics: done! dropped metrics: " + dropped);
+			LOGGER.debug("pushing metrics: done! dropped metrics: {}", dropped);
 		}
 	}
 }
